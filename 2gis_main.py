@@ -3,7 +3,6 @@ import os
 import openpyxl
 import asyncio
 from playwright.async_api import async_playwright
-from translate import Translator
 from typing import List
 from openpyxl import Workbook
 from googletrans import Translator
@@ -61,7 +60,7 @@ class TwoGisMapParse:
         true_site = "Нет ссылки на сайт"
 
         # Название фирмы
-        firm_title = await self.page2.title().split(",")[0]  # Отделяем: (Назв.фирмы, ул. ...)
+        firm_title = (await self.page2.title()).split(",")[0]  # Отделяем: (Назв.фирмы, ул. ...)
 
         # Номер телефона
         try:
@@ -70,7 +69,7 @@ class TwoGisMapParse:
             if phone_container:
                 # Теперь ищем телефон внутри этого контейнера
                 phone = await phone_container.query_selector('a[href^="tel:"]')
-                self.true_phone = await phone.get_attribute("href")[4:16]  # Вывожу без tel:
+                self.true_phone = (await phone.get_attribute("href"))[4:16]  # Вывожу без tel:
             else:
                 self.true_phone = "---"
         except Exception as e:
@@ -141,7 +140,7 @@ class TwoGisMapParse:
                 timezone_id="Europe/Moscow",
             )  # По типу вкладок инкогнито
             self.page = (await self.context.new_page())  # Новая страница, создается в контексте
-            await self.page.goto(f"https://2gis.ru/{await self.translate_text()}")  # Переходим по адресу с переведенным городом
+            await self.page.goto(f"https://2gis.ru/{await self.translate_text()}", wait_until="domcontentloaded")  # Переходим по адресу с переведенным городом
             if await self.translate_text() not in self.page.url:
                 await self.page.close()
             # Ищем поле поиска, пишем туда keyword и печатаем каждую букву с промежутком времени 0.4 с
@@ -174,7 +173,7 @@ class TwoGisMapParse:
 
 
 async def main():
-    parser = TwoGisMapParse(keyword="Мойка", sity="Саратов", max_num_firm=50)
+    parser = TwoGisMapParse(keyword="Мойка", sity="Челябинск", max_num_firm=50)
     await parser.parse_main()
 
 
