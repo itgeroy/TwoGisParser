@@ -7,8 +7,7 @@ from typing import List
 from openpyxl import Workbook
 from googletrans import Translator
 from collections import deque
-
-
+import gui
 class TwoGisMapParse:
     def __init__(self, keyword: str, sity: str, max_num_firm: int):
         self.keyword = keyword  # Ищем по ключевому слову
@@ -28,7 +27,8 @@ class TwoGisMapParse:
         """Переводим город на английский для удобства"""
         self.translator = Translator()
         a = await self.translator.translate(self.sity, src="ru", dest="en")
-        return a.text.lower()
+        a = '-'.join(a.text.split())
+        return a.lower()
 
     async def __get_links(self) -> List[str]:
         """Извлекаем ссылки на организации, находящиеся на странице"""
@@ -175,7 +175,7 @@ class TwoGisMapParse:
 
 
 async def main():
-    parser = TwoGisMapParse(keyword="Мойка", sity="Челябинск", max_num_firm=200)
+    parser = TwoGisMapParse(keyword="Авто Мойка", sity="Саратов", max_num_firm=200)
     await parser.parse_main()
 
 
