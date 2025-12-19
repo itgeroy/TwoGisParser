@@ -1,7 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
 import sv_ttk
-import MainTwoGis
+import threading
+import time
+import random
+from tkinter import ttk, messagebox
 
 class MainApplication(ttk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -15,13 +17,12 @@ class MainApplication(ttk.Frame):
             self.parent.iconphoto(True, icon)
         except Exception:
             pass
-            
+  
         self.interface_style()
         self.pack(fill=tk.BOTH, expand=True)
-        self.create_widgets()
-        
+        self.create_widgets() 
         self.toggle_parser_mode()
-        
+            
     def interface_style(self):
         sv_ttk.set_theme("light")
         
@@ -49,103 +50,106 @@ class MainApplication(ttk.Frame):
 
     def create_parser_controls(self):
         """Создание элементов управления для парсера"""
-        # Основной фрейм
+        # Основной фрейм с grid для точного контроля
         main_frame = ttk.Frame(self, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Фрейм для выбора режима парсинга
+        # Конфигурация grid - основной контейнер
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Счетчик строк для grid
+        row = 0
+        
+        # 1. Фрейм для выбора режима парсинга
         mode_frame = ttk.LabelFrame(main_frame, text="Режим парсинга", padding=10)
-        mode_frame.pack(fill=tk.X, padx=10, pady=10)
+        mode_frame.grid(row=row, column=0, sticky=tk.EW, padx=10, pady=(0, 5))
+        mode_frame.config(height=70)
         
-        self.parser_mode = tk.StringVar(value="keyword")  # По умолчанию парсер по ключу
+        self.parser_mode_key = tk.StringVar(value="keyword")
         
-        # Радио-кнопки для выбора режима
         ttk.Radiobutton(mode_frame, text="Парсер по ключу", 
-                       variable=self.parser_mode, 
+                       variable=self.parser_mode_key, 
                        value="keyword",
-                       command=self.toggle_parser_mode).grid(row=0, column=0, sticky=tk.W, padx=20, pady=5)
+                       command=self.toggle_parser_mode).grid(row=0, column=0, sticky=tk.W, padx=15, pady=0)
         
         ttk.Radiobutton(mode_frame, text="Парсер по URL", 
-                       variable=self.parser_mode, 
+                       variable=self.parser_mode_key, 
                        value="url",
-                       command=self.toggle_parser_mode).grid(row=0, column=1, sticky=tk.W, padx=20, pady=5)
+                       command=self.toggle_parser_mode).grid(row=0, column=1, sticky=tk.W, padx=15, pady=0)
         
-        # Фрейм для параметров парсинга (будет меняться в зависимости от режима)
+        row += 1
+        
+        # 2. Фрейм для темы парсера
+        theme_frame = ttk.LabelFrame(main_frame, text="Тема парсера", padding=10)
+        theme_frame.grid(row=row, column=0, sticky=tk.EW, padx=10, pady=(0, 5))
+        theme_frame.config(height=70)
+        
+        self.parser_mode_t = tk.StringVar(value="tlight")
+        
+        ttk.Radiobutton(theme_frame, text="Светлая тема",
+                       variable=self.parser_mode_t,
+                       value="tlight",
+                       command=self.theme_parser_mode).grid(row=0, column=0, sticky=tk.W, padx=15, pady=0)
+        
+        ttk.Radiobutton(theme_frame, text="Темная тема",
+                       variable=self.parser_mode_t,
+                       value="tdark",
+                       command=self.theme_parser_mode).grid(row=0, column=1, sticky=tk.W, padx=15, pady=0)
+        
+        row += 1
+        
+        # 3. Фрейм для параметров парсинга
         self.params_frame = ttk.LabelFrame(main_frame, text="Параметры парсинга", padding=10)
-        self.params_frame.pack(fill=tk.X, padx=10, pady=10)
+        self.params_frame.grid(row=row, column=0, sticky=tk.EW, padx=10, pady=(0, 5))
+        self.params_frame.config(height=90)
         
         # Создаем оба варианта параметров, но показываем только один
         self.create_keyword_params()
         self.create_url_params()
         
-        # Дополнительные параметры (общие для обоих режимов)
-        self.create_common_params()
-        self.create_control_buttons()  # Кнопки управления
-        self.create_log_area()  # Лог выполнения
+        row += 1
         
-    def create_keyword_params(self):
-        """Создание элементов для парсера по ключу"""
-        self.keyword_frame = ttk.Frame(self.params_frame)
+        # 4. Дополнительные параметры
+        common_frame = ttk.LabelFrame(main_frame, text="Дополнительные параметры", padding=10)
+        common_frame.grid(row=row, column=0, sticky=tk.EW, padx=10, pady=(0, 5))
+        common_frame.config(height=90)
         
-        # Ключевое слово
-        ttk.Label(self.keyword_frame, text="Ключевое слово:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.keyword_var = tk.StringVar(value="Мойка")
-        self.keyword_entry = ttk.Entry(self.keyword_frame, textvariable=self.keyword_var, width=25)
-        self.keyword_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        
-        # Город
-        ttk.Label(self.keyword_frame, text="Город:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.city_var = tk.StringVar(value="Челябинск")
-        self.city_entry = ttk.Entry(self.keyword_frame, textvariable=self.city_var, width=25)
-        self.city_entry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
-        
-    def create_url_params(self):
-        """Создание элементов для парсера по URL"""
-        self.url_frame = ttk.Frame(self.params_frame)
-        
-        # URL для парсинга
-        ttk.Label(self.url_frame, text="URL страницы 2ГИС:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.url_var = tk.StringVar(value="https://2gis.ru/chelyabinsk/search/Мойка")
-        self.url_entry = ttk.Entry(self.url_frame, textvariable=self.url_var, width=50)
-        self.url_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        
-        # Привязываем нажатие Ctrl+V для удобной вставки URL
-        self.url_entry.bind("<Control-v>", lambda e: self.url_entry.event_generate('<<Paste>>'))
-        
-    def create_common_params(self):
-        """Создание общих параметров для обоих режимов"""
-        common_frame = ttk.LabelFrame(self, text="Дополнительные параметры", padding=10)
-        common_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        # Количество фирм
-        ttk.Label(common_frame, text="Количество фирм:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        # Содержимое common_frame
+        ttk.Label(common_frame, text="Количество фирм:").grid(row=0, column=0, sticky=tk.W, pady=0)
         self.firm_count_var = tk.IntVar(value=50)
         self.firm_count_spinbox = ttk.Spinbox(common_frame, from_=1, to=1000, 
-                                              textvariable=self.firm_count_var, width=20)
-        self.firm_count_spinbox.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+                                              textvariable=self.firm_count_var, width=17)
+        self.firm_count_spinbox.grid(row=0, column=1, padx=5, pady=0, sticky=tk.W)
         
+        self.text_url_btn = ttk.Label(common_frame, text="Парсинг по URL:", width=20)
+        self.text_url_btn.grid(row=1, column=0, sticky=tk.W, pady=0)
         
-        # Кнопка для генерации URL (только для режима по ключу)
         self.generate_url_btn = ttk.Button(common_frame, text="Сгенерировать URL", 
-                                          command=self.generate_url, width=20)
-        self.generate_url_btn.grid(row=1, column=2, columnspan=2, padx=5, pady=5)
+                                          command=self.generate_url, width=25)
+        self.generate_url_btn.grid(row=1, column=1, sticky=tk.W, padx=5, pady=0)
         
-    def create_control_buttons(self):
-        """Создание кнопок управления"""
-        button_frame = ttk.Frame(self, padding=10)
-        button_frame.pack(pady=10)
+        row += 1
+        
+        # 5. Кнопки управления
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=row, column=0, sticky=tk.W, padx=20, pady=(0, 5))
+        button_frame.config(height=40)
         
         ttk.Button(button_frame, text="Запустить парсинг", 
-                  command=self.run_parsing, width=25).pack(side=tk.LEFT, padx=5)
+                  command=self.run_parsing, width=20).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Остановить парсинг", 
-                  command=self.stop_parsing, width=25).pack(side=tk.LEFT, padx=5)
+                  command=self.stop_parsing, width=20).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Очистить лог", 
-                  command=self.clear_log, width=25).pack(side=tk.LEFT, padx=5)
+                  command=self.clear_log, width=20).pack(side=tk.LEFT, padx=5)
         
-    def create_log_area(self):
-        """Создание области для логов"""
-        log_frame = ttk.LabelFrame(self, text="Лог выполнения", padding=10)
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        row += 1
+        
+        # Лог выполнения
+        log_frame = ttk.LabelFrame(main_frame, text="Лог выполнения", padding=10)
+        log_frame.grid(row=row, column=0, sticky=tk.NSEW, padx=10, pady=0)
+        
+        # Настраиваем вес строки для растягивания лога
+        main_frame.grid_rowconfigure(row, weight=1)
         
         # Создаем текстовое поле для логов
         self.log_text = tk.Text(log_frame, height=20, wrap=tk.WORD)
@@ -157,31 +161,74 @@ class MainApplication(ttk.Frame):
         self.log_text.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self.log_text.yview)
         
-    def create_status_bar(self):
-        """Создание строки состояния"""
-        self.status_var = tk.StringVar()
-        self.status_var.set("Готов к работе")
-        self.status_bar = ttk.Label(self, textvariable=self.status_var, 
-                                   relief=tk.SUNKEN, padding=(10, 5))
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+    def create_keyword_params(self):
+        """Создание элементов для парсера по ключу"""
+        self.keyword_frame = ttk.Frame(self.params_frame)
+        self.keyword_frame.place(x=0, y=0, relwidth=1, relheight=1)  # Занимает весь params_frame
         
+        # Ключевое слово
+        ttk.Label(self.keyword_frame, text="Ключевое слово:").grid(row=0, column=0, sticky=tk.W, pady=0)
+        self.keyword_var = tk.StringVar(value="Мойка")
+        self.keyword_entry = ttk.Entry(self.keyword_frame, textvariable=self.keyword_var, width=25)
+        self.keyword_entry.grid(row=0, column=1, padx=5, pady=0, sticky=tk.W)
+        
+        # Город
+        ttk.Label(self.keyword_frame, text="Город:").grid(row=1, column=0, sticky=tk.W, pady=0)
+        self.city_var = tk.StringVar(value="Челябинск")
+        self.city_entry = ttk.Entry(self.keyword_frame, textvariable=self.city_var, width=25)
+        self.city_entry.grid(row=1, column=1, padx=5, pady=0, sticky=tk.W)
+        
+    def create_url_params(self):
+        """Создание элементов для парсера по URL"""
+        self.url_frame = ttk.Frame(self.params_frame)
+        self.url_frame.place(x=0, y=0, relwidth=1, relheight=1)  # Занимает весь params_frame
+        
+        # URL для парсинга
+        ttk.Label(self.url_frame, text="URL страницы 2ГИС:").grid(row=0, column=0, sticky=tk.W, pady=0)
+        self.url_var = tk.StringVar(value="https://2gis.ru/chelyabinsk/search/Мойка")
+        self.url_entry = ttk.Entry(self.url_frame, textvariable=self.url_var, width=50)
+        self.url_entry.grid(row=0, column=1, padx=5, pady=0, sticky=tk.W)
+        
+        # Пустое пространство для выравнивания
+        empty_space = ttk.Frame(self.url_frame, height=30)
+        empty_space.grid(row=1, column=0, columnspan=2, pady=0)
+
     def toggle_parser_mode(self):
         """Переключение между режимами парсинга"""
-        if self.parser_mode.get() == "keyword":
+        if self.parser_mode_key.get() == "keyword":
             # Показываем параметры для парсера по ключу
-            for widget in self.params_frame.winfo_children():
-                widget.pack_forget()
-            self.keyword_frame.pack(fill=tk.X, pady=5)
+            self.url_frame.place_forget()
+            self.keyword_frame.place(x=0, y=0, relwidth=1, relheight=1)
             self.generate_url_btn.config(state=tk.NORMAL)
             self.status_var.set("Режим: Парсер по ключу")
         else:
             # Показываем параметры для парсера по URL
-            for widget in self.params_frame.winfo_children():
-                widget.pack_forget()
-            self.url_frame.pack(fill=tk.X, pady=5)
+            self.keyword_frame.place_forget()
+            self.url_frame.place(x=0, y=0, relwidth=1, relheight=1)
             self.generate_url_btn.config(state=tk.DISABLED)
             self.status_var.set("Режим: Парсер по URL")
+
+    def theme_parser_mode(self):
+        """Переключение между темой парсера - СТАБИЛЬНАЯ ВЕРСИЯ"""
+        current_geometry = self.parent.geometry()  # Сохраняем текущие размеры окна
+        
+        if self.parser_mode_t.get() == "tlight":
+            sv_ttk.set_theme("light")
+            self.status_var.set("Установлена: Светлая тема")
+        else:
+            sv_ttk.set_theme("dark")
+            self.status_var.set("Установлена: Темная тема")
             
+        # Принудительно обновляем интерфейс
+        self.parent.update_idletasks()
+        
+        # Восстанавливаем размеры окна
+        self.parent.geometry(current_geometry)
+        
+        # Обновляем состояние кнопок
+        self.toggle_parser_mode()
+
+    # Остальные методы остаются без изменений...
     def generate_url(self):
         """Генерация URL на основе ключевого слова и города"""
         keyword = self.keyword_var.get().strip()
@@ -195,7 +242,7 @@ class MainApplication(ttk.Frame):
         city_lower = city.lower()
         keyword_encoded = keyword.replace(" ", "%20")
         
-        # Простое преобразование для русских городов
+        # Маппинг городов
         city_mapping = {
             "Белая Калитва": "belaya-kalitva",
             "Санкт-Петербург": "spb",
@@ -217,12 +264,12 @@ class MainApplication(ttk.Frame):
         if messagebox.askyesno("URL сгенерирован", 
                               f"URL успешно сгенерирован:\n{generated_url}\n\n"
                               f"Хотите переключиться на парсер по URL?"):
-            self.parser_mode.set("url")
+            self.parser_mode_key.set("url")
             self.toggle_parser_mode()
             
     def run_parsing(self):
         """Запуск парсинга в зависимости от выбранного режима"""
-        if self.parser_mode.get() == "keyword":
+        if self.parser_mode_key.get() == "keyword":
             self.run_keyword_parsing()
         else:
             self.run_url_parsing()
@@ -239,7 +286,6 @@ class MainApplication(ttk.Frame):
             
         self.log_message(f"Начало парсинга по ключу: '{keyword}' в {city}, количество: {firm_count}")
         self.status_var.set(f"Парсинг по ключу: {keyword} в {city}")
-        
         # Здесь будет вызов реального парсера
         self.simulate_parsing("keyword", keyword, city, firm_count)
         
@@ -264,10 +310,6 @@ class MainApplication(ttk.Frame):
 
     def simulate_parsing(self, mode, *args):
         """Имитация работы парсера"""
-        import threading
-        import time
-        import random
-        
         def parsing_thread():
             try:
                 if mode == "keyword":
@@ -281,9 +323,7 @@ class MainApplication(ttk.Frame):
                     self.after(0, lambda: self.log_message(f"Найдено {min(firm_count, 15)} организаций"))
                 else:
                     url, firm_count = args
-                    
                     self.after(0, self.log_message, f"Анализ URL: {url}")
-                    
                     self.after(0, lambda: self.status_var.set("Парсинг по URL завершен"))
                     self.after(0, lambda: self.log_message(f"Обработано {min(firm_count, 20)} записей"))
                 
@@ -312,7 +352,6 @@ class MainApplication(ttk.Frame):
         self.log_text.insert(tk.END, f"[{timestamp}] {message}\n")
         self.log_text.see(tk.END)
 
-
     def user_manual(self):
         """Обработчик кнопки 'Руководство пользователя'"""
         about_text = """
@@ -333,8 +372,8 @@ class MainApplication(ttk.Frame):
         4. Нажмите "Запустить парсинг"
         
         Примечания:
-        • Для работы парсера требуется стабильное интернет-соединение
-        • Можно переключаться между режимами в процессе работы
+            • Для работы парсера требуется стабильное интернет-соединение
+            • Можно переключаться между режимами в процессе работы
         """
         messagebox.showinfo("Руководство пользователя", about_text, icon="question")
 
@@ -342,7 +381,7 @@ class MainApplication(ttk.Frame):
         """Обработчик кнопки 'О программе'"""
         about_text = """
         Парсер данных 2ГИС
-        Версия 2.0.0
+        Версия 2.0.2
         
         Два режима работы в одном интерфейсе:
         1. Парсер по ключу - поиск организаций по ключевому слову и городу
@@ -362,6 +401,14 @@ class MainApplication(ttk.Frame):
         """Выход из приложения"""
         if messagebox.askyesno("Выход", "Вы уверены, что хотите выйти?"):
             self.parent.quit()
+
+    def create_status_bar(self):
+        """Создание строки состояния"""
+        self.status_var = tk.StringVar()
+        self.status_var.set("Готов к работе")
+        self.status_bar = ttk.Label(self, textvariable=self.status_var, 
+                                   relief=tk.SUNKEN, padding=(10, 5))
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
 def main():
     """Точка входа в приложение"""
