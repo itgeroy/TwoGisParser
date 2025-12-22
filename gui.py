@@ -284,7 +284,7 @@ class MainApplication(ttk.Frame):
         if self.is_parsing:
             messagebox.showwarning("Предупреждение", "Парсинг уже выполняется!")
             return
-            
+        self.is_parsing = True
         if self.parser_mode_key.get() == "keyword":
             self.run_keyword_parsing()
         else:
@@ -343,8 +343,6 @@ class MainApplication(ttk.Frame):
                 parser_instance.parse_main(update_callback=self.update_gui_from_thread)
             )
         except Exception as e:
-            self.update_gui_from_thread(f"Ошибка при парсинге: {str(e)}")
-        finally:
             self.update_gui_from_thread("Парсинг завершен")
             self.is_parsing = False
             loop.close()
@@ -362,8 +360,15 @@ class MainApplication(ttk.Frame):
         if not self.is_parsing:
             messagebox.showinfo("Информация", "Парсинг не выполняется")
             return
-            
-        # TODO:обавить логику остановки парсера
+        
+        # Закрытие страницы в отдельном потоке
+        if hasattr(self, 'parser_instance'):
+            threading.Thread(
+                target=lambda: asyncio.run(self.parser_instance.page.close()) 
+                if hasattr(self.parser_instance, 'page') else None,
+                daemon=True
+            ).start()
+        
         self.is_parsing = False
         self.status_var.set("Парсинг остановлен")
         self.log_message("Парсинг остановлен пользователем")
