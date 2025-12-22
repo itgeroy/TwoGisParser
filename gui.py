@@ -2,13 +2,8 @@ import tkinter as tk
 import sv_ttk
 import threading
 import asyncio
-import time
-import random
+import heavy_dicts
 from tkinter import ttk, messagebox
-import os
-import openpyxl
-from playwright.async_api import async_playwright
-from collections import deque
 from googletrans import Translator
 from MainTwoGis import TwoGisMapParse
 
@@ -194,7 +189,7 @@ class MainApplication(ttk.Frame):
     def create_url_params(self):
         """Создание элементов для парсера по URL"""
         self.url_frame = ttk.Frame(self.params_frame)
-        self.url_frame.place(x=0, y=0, relwidth=1, relheight=1)  # Занимает весь params_frame
+        self.url_frame.place(x=0, y=0, relwidth=1, relheight=1)
         
         # URL для парсинга
         ttk.Label(self.url_frame, text="URL страницы 2ГИС:").grid(row=0, column=0, sticky=tk.W, pady=0)
@@ -222,7 +217,7 @@ class MainApplication(ttk.Frame):
             self.status_var.set("Режим: Парсер по URL")
 
     def theme_parser_mode(self):
-        """Переключение между темой парсера - СТАБИЛЬНАЯ ВЕРСИЯ"""
+        """Переключение между темой парсера"""
         current_geometry = self.parent.geometry()  # Сохраняем текущие размеры окна
         
         if self.parser_mode_t.get() == "tlight":
@@ -240,35 +235,30 @@ class MainApplication(ttk.Frame):
         
         # Обновляем состояние кнопок
         self.toggle_parser_mode()
+        
+    async def translate_text(self, sity):
+        """Переводим город на английский для удобства"""
+        self.translator = Translator()
+        a = await self.translator.translate(sity, src="ru", dest="en")
+        a = '-'.join(a.text.split())
+        return a.lower()
 
     def generate_url(self):
         """Генерация URL на основе ключевого слова и города"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         keyword = self.keyword_var.get().strip()
-        city = self.city_var.get().strip()
+        city = loop.run_until_complete(self.translate_text(self.city_var.get().strip()))
         
         if not keyword or not city:
             messagebox.showwarning("Предупреждение", "Введите ключевое слово и город!")
             return
-            
-        # Преобразуем кириллицу в латиницу для URL (упрощенный вариант)
-        city_lower = city.lower()
-        keyword_encoded = keyword.replace(" ", "%20")
-        
-        # Маппинг городов
-        city_mapping = {
-            "Белая Калитва": "belaya-kalitva",
-            "Санкт-Петербург": "spb",
-            "Белая Холуница": "belaya-holunica",
-            "Большой Камень": "bolshoj-kamen",
-            "Великие Луки": "velikie-luki",
-            "Великий Новгород": "v_novgorod",
-            "Великий Устюг": "velikij-ustyug",
-            "Верхний Тагил": "verhnij-tagil",
-            "Нижний Новгород": "n_novgorod",
-        }
-        
-        city_code = city_mapping.get(city_lower, city_lower)
-        generated_url = f"https://2gis.ru/{city_code}/search/{keyword_encoded}"
+
+        try:
+            city_code = heavy_dicts.city_mapping[self.city_var.get().strip()]
+        except:
+            city_code = city
+        generated_url = f"https://2gis.ru/{city_code}/search/{keyword}"
         
         self.url_var.set(generated_url)
         

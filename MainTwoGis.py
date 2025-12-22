@@ -24,10 +24,10 @@ class TwoGisMapParse:
         """Случайная задержка между действиями"""
         await asyncio.sleep(random.uniform(min_seconds, max_seconds))
 
-    async def translate_text(self):
+    async def translate_text(self, sity):
         """Переводим город на английский для удобства"""
         self.translator = Translator()
-        a = await self.translator.translate(self.sity, src="ru", dest="en")
+        a = await self.translator.translate(sity, src="ru", dest="en")
         a = '-'.join(a.text.split())
         return a.lower()
 
@@ -43,7 +43,7 @@ class TwoGisMapParse:
                 continue
             href = await link.get_attribute("href") or ""  # Находим элемент на стр., где есть /firm/
             # На всякий случай делаю ещё проверку; Ещё проверяю город, чтоб не искало в регионах
-            if href and "/firm/" in href and await self.translate_text() in href:
+            if href and "/firm/" in href and await self.translate_text(self.sity) in href:
                 href = f"https://2gis.ru{href}"  # Делаем полное url
                 if self.ws.max_row + len(self.list_of_companies) - 1>= self.max_num_firm:
                     break
@@ -143,8 +143,8 @@ class TwoGisMapParse:
                 timezone_id="Europe/Moscow",
             )  # По типу вкладок инкогнито
             self.page = (await self.context.new_page())  # Новая страница, создается в контексте
-            await self.page.goto(f"https://2gis.ru/{await self.translate_text()}", wait_until="domcontentloaded")  # Переходим по адресу с переведенным городом
-            if await self.translate_text() not in self.page.url:
+            await self.page.goto(f"https://2gis.ru/{await self.translate_text(self.sity)}", wait_until="domcontentloaded")  # Переходим по адресу с переведенным городом
+            if await self.translate_text(self.sity) not in self.page.url:
                 await self.page.close()
             # Ищем поле поиска, пишем туда keyword и печатаем каждую букву с промежутком времени 0.4 с
             await self.page.get_by_placeholder("Поиск в 2ГИС").type(text=self.keyword, delay=0.4)
@@ -176,7 +176,7 @@ class TwoGisMapParse:
 
 
 async def main():
-    parser = TwoGisMapParse(keyword="Авто Мойка", sity="Саратов", max_num_firm=200)
+    parser = TwoGisMapParse(keyword="Авто Мойка", sity="Волгоград", max_num_firm=200)
     await parser.parse_main()
 
 
