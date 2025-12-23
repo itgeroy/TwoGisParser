@@ -26,10 +26,20 @@ class TwoGisMapParse:
 
     async def translate_text(self, sity):
         """Переводим город на английский для удобства"""
-        self.translator = Translator()
-        a = await self.translator.translate(sity, src="ru", dest="en")
-        a = '-'.join(a.text.split())
-        return a.lower()
+        # Проверяем, является ли слово английским (только латинские буквы)
+        import re
+        is_english = bool(re.match(r'^[a-zA-Z\s\-]+$', sity))
+        
+        if is_english:
+            # Если уже английское слово, просто форматируем
+            sity_clean = '-'.join(sity.split())
+            return sity_clean.lower()
+        else:
+            # Если русское слово - переводим
+            self.translator = Translator()
+            a = await self.translator.translate(sity, src="ru", dest="en")
+            a = '-'.join(a.text.split())
+            return a.lower()
 
     async def __get_links(self) -> List[str]:
         """Извлекаем ссылки на организации, находящиеся на странице"""

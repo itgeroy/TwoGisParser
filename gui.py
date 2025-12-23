@@ -3,6 +3,7 @@ import sv_ttk
 import threading
 import asyncio
 import heavy_dicts
+import re
 from tkinter import ttk, messagebox
 from googletrans import Translator
 from MainTwoGis import TwoGisMapParse
@@ -304,24 +305,52 @@ class MainApplication(ttk.Frame):
         self.parser_thread.start()
         
     def run_url_parsing(self):
-        """Запуск парсинга по URL"""
-        # В текущей реализации поддерживается только парсинг по ключу
-        messagebox.showinfo("Информация", "Парсинг по URL в разработке. Используйте режим по ключу.")
-        return
+        """Запуск парсинга по URL - извлекаем город и ключ из URL"""
+        url = self.url_var.get()
+        firm_count = self.firm_count_var.get()
         
-        # url = self.url_var.get()
-        # firm_count = self.firm_count_var.get()
-        # 
-        # if not url:
-        #     messagebox.showwarning("Предупреждение", "Введите URL для парсинга!")
-        #     return
-        #     
-        # if not url.startswith(('https://2gis.ru/', 'http://2gis.ru/')):
-        #     messagebox.showwarning("Предупреждение", "Введите корректный URL 2ГИС!")
-        #     return
-        #     
-        # self.log_message(f"Начало парсинга по URL: {url}")
-        # self.status_var.set(f"Парсинг по URL: {url[:50]}...")
+        if not url:
+            messagebox.showwarning("Предупреждение", "Введите URL для парсинга!")
+            return
+            
+        # Проверяем, что это URL 2ГИС
+        if not url.startswith(('https://2gis.ru/', 'http://2gis.ru/')):
+            messagebox.showwarning("Предупреждение", "Введите корректный URL 2ГИС!")
+            return
+        
+        try:
+            # Извлекаем город и ключевое слово из URL
+            pattern = r'https?://2gis\.ru/([^/]+)/search/(.+)'
+            match = re.search(pattern, url)
+            
+            if match:
+                city_code = match.group(1)
+                keyword = match.group(2)
+                
+                # Декодируем URL-кодирование если есть
+                from urllib.parse import unquote
+                keyword = unquote(keyword)
+                
+                self.log_message(f"Извлечено из URL: город='{city_code}', ключ='{keyword}'")
+                self.status_var.set(f"Парсинг по URL: {city_code} - {keyword}")
+                
+                # Запускаем парсинг так же, как для ключа
+                self.is_parsing = True
+                self.parser_instance = TwoGisMapParse(keyword, city_code, firm_count)
+                self.parser_thread = threading.Thread(
+                    target=self.run_async_parsing,
+                    args=(self.parser_instance,),
+                    daemon=True
+                )
+                self.parser_thread.start()
+            else:
+                messagebox.showwarning("Ошибка", 
+                    "Не удалось извлечь данные из URL. Проверьте формат:\n"
+                    "Пример: https://2gis.ru/chelyabinsk/search/Мойка\n"
+                    "Или: https://2gis.ru/moscow/search/Ресторан")
+                
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Неверный формат URL: {str(e)}")
 
     def run_async_parsing(self, parser_instance):
         """Запуск асинхронного парсинга в отдельном потоке"""
@@ -418,7 +447,7 @@ class MainApplication(ttk.Frame):
         • Автоматическая генерация URL
         • Поддержка светлой и темной темы
         
-        https://github.com/itgeroy/TwoGisParser
+        https://github.com/itrickon/TwoGisParser
         
         Используемые технологии:
         • Python 3.11+
