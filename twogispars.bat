@@ -2,25 +2,28 @@
 chcp 65001 >nul
 echo.
 echo ╔══════════════════════════════════════════════════╗
-echo ║                    Парсер 2GIS                   ║
+echo ║                   Парсер 2GIS                    ║
 echo ╚══════════════════════════════════════════════════╝
 echo.
 
-echo Устанавливаем PyInstaller...
+echo.
+echo Устанавливаем зависимости...
+pip install sv-ttk
 pip install pyinstaller
+pip install googletrans
+pip install playwright
+pip install openpyxl
 
 echo.
-echo Компилируем в EXE...
-pyinstaller --name="TwoGisParser" ^
+echo Собираем EXE...
+pyinstaller --clean --noconfirm ^
+--name="2GIS_Parser" ^
 --onefile ^
 --windowed ^
---add-data=".;." ^
-gui.py
-
+--icon="static/icon.ico" ^
+--add-data="static;static" ^
+--hidden-import="sv_ttk" ^
+gui_main.py
 
 echo.
-echo Готово! 
-echo EXE файл находится в папке: dist\
-echo.
-
 pause

@@ -484,6 +484,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # Установите Playwright перед первым запуском:
-    # python -m playwright install chromium
     main()
